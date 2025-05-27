@@ -1,0 +1,20 @@
+{
+  "name": "kneesurgery",
+  "version": "1.0.0",
+  "description": "bot",
+  "main": "index.js",
+  "scripts": {
+    "test": "testIt"
+  },
+  "keywords": [
+    "bot"
+  ],
+  "author": "riverskipper",
+  "license": "ISC",
+  "dependencies": {
+    "@discordjs/voice": "^0.18.0",
+    "ffmpeg": "^0.0.4",
+    "ffmpeg-static": "^5.2.0",
+    "libsodium-wrappers": "^0.7.15"
+  }
+}
