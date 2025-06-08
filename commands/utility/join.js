@@ -23,7 +23,7 @@ module.exports = {
             console.log(newVoice);
         }
         catch(error){
-
+            console.log('could not get voice!');
         }
 
         
