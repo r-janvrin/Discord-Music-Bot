@@ -5,13 +5,13 @@ module.exports = {
 		.setName('play')
 		.setDescription('Plays a song!')
         .addStringOption(option =>
-            option.setName('command')
-				.setDescription('The command to reload.')
+            option.setName('songName')
+				.setDescription('The name of the song to play')
 				.setRequired(true)),
         
 	async execute(interaction) {
-        const commandName = interaction.options.getString('command', true).toLowerCase();
-		await interaction.reply('Pong!');
+        const songName = interaction.options.getString('songName', true).toLowerCase();
+		await interaction.reply('Adding ' + songName + ' to the queue!');
         //interaction.user is the object of the user who ran command
         //interaction.member is the guildmember object
 	},

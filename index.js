@@ -4,8 +4,9 @@ const { token } = require('./config.json');
 const fs = require('node:fs');//fs is native file system
 const path = require('node:path');//path is the path to the file
 const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
+const { createAudioPlayer, createAudioResource, NoSubscriberBehavior, AudioPlayerStatus } = require('@discordjs/voice');
 
-
+const myGuild = await Client.guilds.get(guildId);
 
 const client = new Client({ 
 	intents: [
@@ -37,7 +38,7 @@ for (const folder of commandFolders) {
 	}
 }
 
-
+const songPath = path.join(__dirname, 'songs');
 
 
 // When the client is ready, run this code (only once).
@@ -65,6 +66,14 @@ client.on(Events.InteractionCreate, async interaction => {
 
 	try {
 		await command.execute(interaction);
+		if(interaction.commandName === 'join'){
+
+		}
+		if(interaction.commandName === 'play'){
+			await songList.checkJoinCall(interaction);
+			const songName = interaction.options.getString('songName', true).toLowerCase();
+			songList.addNode((songName + '.mp3'));	
+		}
 	} catch (error) {
 		console.error(error);
 		if (interaction.replied || interaction.deferred) {
@@ -77,42 +86,92 @@ client.on(Events.InteractionCreate, async interaction => {
 
 
 class SongNode{
-	constructor(resource){
-		this.songResouce = resource;
+	constructor(songName){
+		try{
+			this.songResouce = createAudioResource(path.join(songPath, songName));
+		}
+		catch{
+			this.songResource = null;
+			console.log('could not make resource!');
+		}
 		this.next=null;
 	}
 }
 
 class SongLinkedList{
-	constructor(){
+	constructor(){//run on item creation
 		this.head=null;
 		this.next=null;
-		this.player = createAudioPlayer();
-	}
+		this.player = createAudioPlayer({
+			behaviors: {
+				NoSubscriberBehavior: NoSubscriberBehavior.Pause,
+			}
+		});
 
+		//automatically play next song when empty
+		this.player.on(AudioPlayerStatus.Idle, () => {
+			this.playNextSong();
+		});
+	}
+	//add a song to the list
 	addNode(name){
 		let tempNode = SongNode(name);
-		if(!this.head){
+		if(!this.head){//if list is empty make it the head
 			this.head = tempNode;
 			return;
 		}
+
 		let current = this.head;
 		while(current.next){
 			current = current.next;
 		}
 		current.next = tempNode;
+
+		this.playNextSong();
+
 	}
 
 	playNextSong(){
-		if(this.head.songResource){//play the next song 
-			this.player.play(this.head.songResource);
+		if(!this.head){
+			return;
 		}
+		if(!this.head.resource){
+			return;
+		}
+		if(this.player.AudioPlayerStatus === AudioPlayerStatus.Playing){
+			return;
+		}
+
+		this.player.play(this.head.songResource);
 		this.head = this.head.next;//remove the song from queue
 	}
-}
 
-class connector{
-	constructor(player){
+	//if the current call is the same, join, if not, do nothing.
+	async checkJoinCall(interaction){
+        try{
+            const newVoice = await interaction.member.voice.fetch({force: true});
+            const myVoice = await  myGuild.voiceStates.fetch({force: true}, clientId);
+            //console.log(newVoice);
+        }
+        catch(error){
+            console.log('could not get voice!');
+        }
 
+		if(newVoice.channelID === myVoice.channelID){
+            return;
+        }
+
+		this.connection = joinVoiceChannel(
+		{
+            channelId: interaction.member.voice.channelId,
+            guildId: interaction.guildId,
+            adapterCreator: interaction.member.guild.voiceAdapterCreator,
+        });
+
+		this.connection.once(VoiceConnectionStatus.Ready, () => {
+            console.log('The connection has entered the Ready state - ready to play audio!');
+            this.connection.subscribe(player);
+    	});
 	}
+
 }
