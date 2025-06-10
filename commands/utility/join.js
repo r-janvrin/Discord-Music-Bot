@@ -7,6 +7,8 @@ const { subscribe } = require('@discordjs/voice');
 const { generateDependencyReport } = require('@discordjs/voice');
 const { VoiceConnectionStatus } = require('@discordjs/voice');
 
+const { guildId, clientId } = require('../../config.json');
+ 
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -20,21 +22,26 @@ module.exports = {
 		
         try{
             const newVoice = await interaction.member.voice.fetch({force: true});
+            const myGuild = await Client.guilds.get(guildId);
+            const myVoice = await  myGuild.voiceStates.fetch({force: true}, clientId);
             console.log(newVoice);
         }
         catch(error){
             console.log('could not get voice!');
         }
 
+        if(newVoice.channelID === myVoice.channelID){
+            interaction.reply('I\'m already in that channel!');
+        }
         
-        
-        console.log('voice channel: ');
-        console.log(interaction.member.voice.channelId);
+        // console.log('voice channel: ');
+        // console.log(interaction.member.voice.channelId);
         
         if(interaction.member.voice.channelId)
             {
             try {
-                
+                const resource = createAudioResource('C:/Users/ryanj/Desktop/CIS1300_projects/kneeSurgery/songs/goondawgs.mp3');
+
                 const connection = joinVoiceChannel({
                     channelId: interaction.member.voice.channelId,
                     guildId: interaction.guildId,
@@ -46,18 +53,10 @@ module.exports = {
 
                  connection.on(VoiceConnectionStatus.Ready, () => {
                     console.log('The connection has entered the Ready state - ready to play audio!');
-                    const player = createAudioPlayer();
-                    const resource = createAudioResource('C:/Users/ryanj/Desktop/CIS1300_projects/kneeSurgery/songs/goondawgs.mp3');
                     connection.subscribe(player);
                     player.play(resource);
                 });
-
-                 
-                //songs to add:
-                //five nights at diddys
-                //the one piece is real can we get much higher
                 //connection.play('./audiofile.mp3');
-                //snackrunner
 
                 
                 await interaction.reply({content: `Joined: ${currVoiceChannel.name}.`, ephemeral:true});

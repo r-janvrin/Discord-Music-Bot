@@ -4,7 +4,7 @@ const { token } = require('./config.json');
 const fs = require('node:fs');//fs is native file system
 const path = require('node:path');//path is the path to the file
 const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
-const player = createAudioPlayer();
+
 
 
 const client = new Client({ 
@@ -50,11 +50,11 @@ client.once(Events.ClientReady, readyClient => {
 // Log in to Discord with your client's token
 client.login(token);
 
-//create the linked list on the client object
-client.songList = SongLinkedList();
+//create the linked list
+let songList = SongLinkedList();
 
 client.on(Events.InteractionCreate, async interaction => {
-	if (!interaction.isChatInputCommand()) return;//make sure it is a command
+	if (!interaction.isChatInputCommand()) return;//make sure it is a / command
 
 	const command = interaction.client.commands.get(interaction.commandName);
 
@@ -86,6 +86,8 @@ class SongNode{
 class SongLinkedList{
 	constructor(){
 		this.head=null;
+		this.next=null;
+		this.player = createAudioPlayer();
 	}
 
 	addNode(name){
@@ -101,9 +103,16 @@ class SongLinkedList{
 		current.next = tempNode;
 	}
 
-	playNextSong(connection){
-		if(this.head.songResource){//play the next song and remove it from the queue
-			player
+	playNextSong(){
+		if(this.head.songResource){//play the next song 
+			this.player.play(this.head.songResource);
 		}
+		this.head = this.head.next;//remove the song from queue
+	}
+}
+
+class connector{
+	constructor(player){
+
 	}
 }
