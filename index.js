@@ -1,12 +1,15 @@
+// class declaration
+
+
 // Require the necessary discord.js classes
-const { token } = require('./config.json');
+const { token, clientId } = require('./config.json');
 
 const fs = require('node:fs');//fs is native file system
 const path = require('node:path');//path is the path to the file
 const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
-const { createAudioPlayer, createAudioResource, NoSubscriberBehavior, AudioPlayerStatus } = require('@discordjs/voice');
+const { createAudioPlayer, createAudioResource, joinVoiceChannel, VoiceConnectionStatus, NoSubscriberBehavior, AudioPlayerStatus } = require('@discordjs/voice');
 
-const myGuild = await Client.guilds.get(guildId);
+
 
 const client = new Client({ 
 	intents: [
@@ -38,7 +41,7 @@ for (const folder of commandFolders) {
 	}
 }
 
-const songPath = path.join(__dirname, 'songs');
+
 
 
 // When the client is ready, run this code (only once).
@@ -52,52 +55,6 @@ client.once(Events.ClientReady, readyClient => {
 client.login(token);
 
 //create the linked list
-let songList = SongLinkedList();
-
-client.on(Events.InteractionCreate, async interaction => {
-	if (!interaction.isChatInputCommand()) return;//make sure it is a / command
-
-	const command = interaction.client.commands.get(interaction.commandName);
-
-	if (!command) {
-		console.error(`No command matching ${interaction.commandName} was found.`);
-		return;
-	}
-
-	try {
-		await command.execute(interaction);
-		if(interaction.commandName === 'join'){
-
-		}
-		if(interaction.commandName === 'play'){
-			await songList.checkJoinCall(interaction);
-			const songName = interaction.options.getString('songName', true).toLowerCase();
-			songList.addNode((songName + '.mp3'));	
-		}
-	} catch (error) {
-		console.error(error);
-		if (interaction.replied || interaction.deferred) {
-			await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
-		} else {
-			await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
-		}
-	}
-});
-
-
-class SongNode{
-	constructor(songName){
-		try{
-			this.songResouce = createAudioResource(path.join(songPath, songName));
-		}
-		catch{
-			this.songResource = null;
-			console.log('could not make resource!');
-		}
-		this.next=null;
-	}
-}
-
 class SongLinkedList{
 	constructor(){//run on item creation
 		this.head=null;
@@ -146,21 +103,42 @@ class SongLinkedList{
 		this.head = this.head.next;//remove the song from queue
 	}
 
+	forceNextSong(){
+		if(!this.head){
+			return;
+		}
+		if(!this.head.resource){
+			return;
+		}
+		this.player.play(this.head.songResource);
+		this.head = this.head.next;//remove the song from queue
+	}
+
 	//if the current call is the same, join, if not, do nothing.
 	async checkJoinCall(interaction){
         try{
-            const newVoice = await interaction.member.voice.fetch({force: true});
-            const myVoice = await  myGuild.voiceStates.fetch({force: true}, clientId);
-            //console.log(newVoice);
+            this.newVoice = await interaction.member.fetch({force: true});
+			console.log('got voice: ');
+			this.myMember = await interaction.guild.members.fetch({force: true}, '1311470545887432856'); //hardcoded bot ID value
+			console.log('got member');
+            //this.myVoice = await  myMember.voice.fetch({force: true}, myMember);
+            console.log('in voice');
         }
         catch(error){
             console.log('could not get voice!');
+			console.log(error);
         }
 
-		if(newVoice.channelID === myVoice.channelID){
+		if(!this.newVoice.voice || !this.newVoice.voice.channelId){
+			//interaction.followUp('Please join a channel!');
+			return;
+		}
+
+		if(this.myMember.voice && this.newVoice.voice.channelId === this.myMember.voice.channelId){
             return;
         }
 
+		console.log('joining channel!');
 		this.connection = joinVoiceChannel(
 		{
             channelId: interaction.member.voice.channelId,
@@ -170,8 +148,71 @@ class SongLinkedList{
 
 		this.connection.once(VoiceConnectionStatus.Ready, () => {
             console.log('The connection has entered the Ready state - ready to play audio!');
-            this.connection.subscribe(player);
+            this.connection.subscribe(this.player);
     	});
 	}
 
+	leave(){
+		if(this.connection){
+			this.connection.destroy();
+		}
+		this.connection = null;
+	}
 }
+
+let songList = new SongLinkedList();
+const songPath = path.join(__dirname, 'songs');
+
+
+
+client.on(Events.InteractionCreate, async interaction => {
+	if (!interaction.isChatInputCommand()) return;//make sure it is a / command
+
+	const command = interaction.client.commands.get(interaction.commandName);
+
+	if (!command) {
+		console.error(`No command matching ${interaction.commandName} was found.`);
+		return;
+	}
+
+	try {
+		await command.execute(interaction);
+		
+	} catch (error) {
+		console.error(error);
+		if (interaction.replied || interaction.deferred) {
+			await interaction.followUp({ content: 'There was an error while executing this command!!', ephemeral: true });
+		} else {
+			await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+		}
+	}
+
+	try{
+		if(interaction.commandName === 'join'){
+			await songList.checkJoinCall(interaction);
+		}
+		if(interaction.commandName === 'play'){
+			await songList.checkJoinCall(interaction);
+			const songName = interaction.options.getString('songname');
+			songList.addNode((songName + '.mp3'));	
+		}
+	}
+	catch(error){
+		console.error(error);
+	}
+});
+
+
+class SongNode{
+	constructor(name){
+		try{
+			this.songResouce = createAudioResource(path.join(songPath, name));
+		}
+		catch{
+			this.songResource = null;
+			console.log('could not make resource!');
+		}
+		this.next=null;
+	}
+}
+

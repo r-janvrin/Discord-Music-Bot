@@ -20,23 +20,27 @@ module.exports = {
 	async execute(interaction) {
         
 		
-        try{
-            const newVoice = await interaction.member.voice.fetch({force: true});
-            const myGuild = await Client.guilds.get(guildId);
-            const myVoice = await  myGuild.voiceStates.fetch({force: true}, clientId);
-            console.log(newVoice);
-        }
-        catch(error){
-            console.log('could not get voice!');
-        }
-
-        if(newVoice.channelID === myVoice.channelID){
-            interaction.reply('I\'m already in that channel!');
-        }
+        // try{
+        //     const newVoice = await interaction.member.voice.fetch({force: true});
+        //     const myGuild = interaction.client.guilds.get(guildId);
+        //     const myVoice = await  myGuild.voiceStates.fetch({force: true}, clientId);
+        //     //console.log(newVoice);
+        // }
+        // catch(error){
+        //     console.log('could not get voice!');
+        //     console.log(error);
+        // }
         
+        // if(newVoice.channelID === myVoice.channelID){
+        //     interaction.reply('I\'m already in that channel!');
+        // }
+        // else{
+        //     interaction.reply('Trying to join channel!');
+        // }
+        interaction.reply({content: `Joining channel`, ephemeral:true});
         // console.log('voice channel: ');
         // console.log(interaction.member.voice.channelId);
-        
+        /*
         if(interaction.member.voice.channelId)
             {
             try {
@@ -72,7 +76,8 @@ module.exports = {
             interaction.reply({content: `Please join a channel!.`, ephemeral:true});
         }
         
-        
+        */
+
         //.then(connection =>{const dispatcher = connection.play('./audiofile.mp3');}).catch(err => console.log(err));
        // dispatcher.on("end", end => {voiceChannel.leave();});
         
