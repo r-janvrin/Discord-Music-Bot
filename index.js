@@ -7,7 +7,7 @@ const { token, clientId } = require('./config.json');
 const fs = require('node:fs');//fs is native file system
 const path = require('node:path');//path is the path to the file
 const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
-const { createAudioPlayer, createAudioResource, joinVoiceChannel, VoiceConnectionStatus, NoSubscriberBehavior, AudioPlayerStatus } = require('@discordjs/voice');
+const { createAudioPlayer, createAudioResource, joinVoiceChannel, VoiceConnectionStatus, NoSubscriberBehavior, AudioPlayerStatus, entersState  } = require('@discordjs/voice');
 
 
 
@@ -55,6 +55,18 @@ client.once(Events.ClientReady, readyClient => {
 client.login(token);
 
 //create the linked list
+class SongNode{
+	constructor(name){
+		console.log('adding:' + name);
+		console.log('path:' + path.join(songPath, name));
+		this.name = path.join(songPath, name);
+		this.resource = createAudioResource(path.join(songPath, name));
+
+		this.next=null;
+	}
+}
+
+
 class SongLinkedList{
 	constructor(){//run on item creation
 		this.head=null;
@@ -72,9 +84,11 @@ class SongLinkedList{
 	}
 	//add a song to the list
 	addNode(name){
-		let tempNode = SongNode(name);
+		let tempNode = new SongNode(name);
 		if(!this.head){//if list is empty make it the head
+			
 			this.head = tempNode;
+			this.playNextSong();
 			return;
 		}
 
@@ -88,21 +102,27 @@ class SongLinkedList{
 
 	}
 
+	//play the next song if not playing
 	playNextSong(){
 		if(!this.head){
+			console.log('no head!');
 			return;
 		}
 		if(!this.head.resource){
+			console.log('no resource!');
 			return;
 		}
-		if(this.player.AudioPlayerStatus === AudioPlayerStatus.Playing){
+		if(this.player.AudioPlayerStatus != AudioPlayerStatus.Idle){
+			console.log('not idle!');
 			return;
 		}
 
-		this.player.play(this.head.songResource);
+		this.player.play(this.head.resource);
+		console.log('played resource!');
 		this.head = this.head.next;//remove the song from queue
 	}
 
+	//skip this song
 	forceNextSong(){
 		if(!this.head){
 			return;
@@ -149,7 +169,21 @@ class SongLinkedList{
 		this.connection.once(VoiceConnectionStatus.Ready, () => {
             console.log('The connection has entered the Ready state - ready to play audio!');
             this.connection.subscribe(this.player);
+			this.playNextSong();
     	});
+
+		connection.on(VoiceConnectionStatus.Disconnected, async (oldState, newState) => {
+		try {
+			await Promise.race([
+				entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+				entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+			]);
+			// Seems to be reconnecting to a new channel - ignore disconnect
+		} catch {
+			// Seems to be a real disconnect which SHOULDN'T be recovered from
+			connection.destroy();
+		}
+		});
 	}
 
 	leave(){
@@ -158,7 +192,10 @@ class SongLinkedList{
 		}
 		this.connection = null;
 	}
+
+
 }
+
 
 let songList = new SongLinkedList();
 const songPath = path.join(__dirname, 'songs');
@@ -193,7 +230,16 @@ client.on(Events.InteractionCreate, async interaction => {
 		}
 		if(interaction.commandName === 'play'){
 			await songList.checkJoinCall(interaction);
-			const songName = interaction.options.getString('songname');
+			let songName = interaction.options.getString('songname', true);
+			songList.addNode((songName + '.mp3'));	
+		}
+		if(interaction.commandName === 'skip'){
+			let songName = interaction.options.getString('songname', true);
+			songList.addNode((songName + '.mp3'));	
+		}
+		if(interaction.commandName === 'leave'){
+			await songList.checkJoinCall(interaction);
+			let songName = interaction.options.getString('songname', true);
 			songList.addNode((songName + '.mp3'));	
 		}
 	}
@@ -203,16 +249,5 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 
-class SongNode{
-	constructor(name){
-		try{
-			this.songResouce = createAudioResource(path.join(songPath, name));
-		}
-		catch{
-			this.songResource = null;
-			console.log('could not make resource!');
-		}
-		this.next=null;
-	}
-}
+
 

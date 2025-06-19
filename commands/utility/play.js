@@ -10,7 +10,7 @@ module.exports = {
 				.setRequired(true)),
         
 	async execute(interaction) {
-        const songName = interaction.options.getString('songname');
+        const songName = interaction.options.getString('songname', true);
 		await interaction.reply('Adding ' + songName + ' to the queue!');
         //interaction.user is the object of the user who ran command
         //interaction.member is the guildmember object
