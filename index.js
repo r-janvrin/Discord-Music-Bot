@@ -114,6 +114,7 @@ class SongLinkedList{
 		}
 		if(this.player.AudioPlayerStatus != AudioPlayerStatus.Idle){
 			console.log('not idle!');
+			console.log(this.player.AudioPlayerStatus);
 			return;
 		}
 
@@ -172,16 +173,16 @@ class SongLinkedList{
 			this.playNextSong();
     	});
 
-		connection.on(VoiceConnectionStatus.Disconnected, async (oldState, newState) => {
+		this.connection.on(VoiceConnectionStatus.Disconnected, async (oldState, newState) => {
 		try {
 			await Promise.race([
-				entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
-				entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+				entersState(this.connection, VoiceConnectionStatus.Signalling, 5_000),
+				entersState(this.connection, VoiceConnectionStatus.Connecting, 5_000),
 			]);
 			// Seems to be reconnecting to a new channel - ignore disconnect
 		} catch {
 			// Seems to be a real disconnect which SHOULDN'T be recovered from
-			connection.destroy();
+			this.connection.destroy();
 		}
 		});
 	}
