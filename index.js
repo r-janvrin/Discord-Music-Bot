@@ -71,6 +71,7 @@ class SongLinkedList{
 	constructor(){//run on item creation
 		this.head=null;
 		this.next=null;
+		this.isPlaying=false;
 		this.player = createAudioPlayer({
 			behaviors: {
 				NoSubscriberBehavior: NoSubscriberBehavior.Pause,
@@ -79,6 +80,7 @@ class SongLinkedList{
 
 		//automatically play next song when empty
 		this.player.on(AudioPlayerStatus.Idle, () => {
+			this.isPlaying=false;
 			this.playNextSong();
 		});
 	}
@@ -112,14 +114,15 @@ class SongLinkedList{
 			console.log('no resource!');
 			return;
 		}
-		if(this.player.AudioPlayerStatus != AudioPlayerStatus.Idle){
+		if(this.isPlaying){
 			console.log('not idle!');
-			console.log(this.player.AudioPlayerStatus);
+			//console.log(this.player.AudioPlayerStatus);
 			return;
 		}
 
 		this.player.play(this.head.resource);
 		console.log('played resource!');
+		this.isPlaying=true;
 		this.head = this.head.next;//remove the song from queue
 	}
 
@@ -139,7 +142,7 @@ class SongLinkedList{
 	async checkJoinCall(interaction){
         try{
             this.newVoice = await interaction.member.fetch({force: true});
-			console.log('got voice: ');
+			//console.log('got voice: ');
 			this.myMember = await interaction.guild.members.fetch({force: true}, '1311470545887432856'); //hardcoded bot ID value
 			console.log('got member');
             //this.myVoice = await  myMember.voice.fetch({force: true}, myMember);
@@ -154,11 +157,16 @@ class SongLinkedList{
 			//interaction.followUp('Please join a channel!');
 			return;
 		}
-
-		if(this.myMember.voice && this.newVoice.voice.channelId === this.myMember.voice.channelId){
+		console.log('before check');
+		if(this.myMember.voice){
+			console.log(this.myMember.voice);
+			console.log(this.newVoice.voice);
+			if(this.newVoice.voice.channelId == this.myMember.voice.channelId){
+			console.log('already in channel!');
             return;
+			}
         }
-
+		//console.log('my:' + this.myMember + 'theirs: ' + this.newVoice.voice.channelId);
 		console.log('joining channel!');
 		this.connection = joinVoiceChannel(
 		{
