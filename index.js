@@ -72,6 +72,7 @@ class SongLinkedList{
 		this.head=null;
 		this.next=null;
 		this.isPlaying=false;
+		this.isConnected = false;
 		this.player = createAudioPlayer({
 			behaviors: {
 				NoSubscriberBehavior: NoSubscriberBehavior.Pause,
@@ -104,6 +105,14 @@ class SongLinkedList{
 
 	}
 
+	playAll(){
+		const foldersPath = path.join(__dirname, '..', '..',  'songs');
+		const songFolders = fs.readdirSync(foldersPath).filter(file => file.endsWith('.mp3'));//read everything from the folders into commandFolders (array)
+		for(const file of songFolders){
+			this.addNode(file);
+		} 
+	}
+
 	//play the next song if not playing
 	playNextSong(){
 		if(!this.head){
@@ -129,9 +138,11 @@ class SongLinkedList{
 	//skip this song
 	forceNextSong(){
 		if(!this.head){
+			this.player.stop();
 			return;
 		}
 		if(!this.head.resource){
+			this.player.stop();
 			return;
 		}
 		this.player.play(this.head.songResource);
@@ -140,10 +151,12 @@ class SongLinkedList{
 
 	//if the current call is the same, join, if not, do nothing.
 	async checkJoinCall(interaction){
+		if(this.isConnected) return;
         try{
             this.newVoice = await interaction.member.fetch({force: true});
 			//console.log('got voice: ');
 			this.myMember = await interaction.guild.members.fetch({force: true}, '1311470545887432856'); //hardcoded bot ID value
+			this.myVoice = await this.myMember;
 			console.log('got member');
             //this.myVoice = await  myMember.voice.fetch({force: true}, myMember);
             console.log('in voice');
@@ -153,21 +166,22 @@ class SongLinkedList{
 			console.log(error);
         }
 
-		if(!this.newVoice.voice || !this.newVoice.voice.channelId){
-			//interaction.followUp('Please join a channel!');
-			return;
-		}
+		// if(!this.newVoice.voice || !this.newVoice.voice.channelId){
+		// 	//interaction.followUp('Please join a channel!');
+		// 	return;
+		// }
 		console.log('before check');
-		if(this.myMember.voice){
-			console.log(this.myMember.voice);
-			console.log(this.newVoice.voice);
-			if(this.newVoice.voice.channelId == this.myMember.voice.channelId){
+		if(this.myVoice.voice){
+
+			if(this.newVoice.voice.channelId == this.myVoice.voice.channelId){
 			console.log('already in channel!');
             return;
 			}
         }
 		//console.log('my:' + this.myMember + 'theirs: ' + this.newVoice.voice.channelId);
-		console.log('joining channel!');
+		//console.log("mine " + this.myVoice.voice);
+		//console.log(this.newVoice.voice);
+		//console.log('joining channel!');
 		this.connection = joinVoiceChannel(
 		{
             channelId: interaction.member.voice.channelId,
@@ -182,6 +196,7 @@ class SongLinkedList{
     	});
 
 		this.connection.on(VoiceConnectionStatus.Disconnected, async (oldState, newState) => {
+			
 		try {
 			await Promise.race([
 				entersState(this.connection, VoiceConnectionStatus.Signalling, 5_000),
@@ -191,6 +206,7 @@ class SongLinkedList{
 		} catch {
 			// Seems to be a real disconnect which SHOULDN'T be recovered from
 			this.connection.destroy();
+			this.isConnected = false;
 		}
 		});
 	}
@@ -200,6 +216,7 @@ class SongLinkedList{
 			this.connection.destroy();
 		}
 		this.connection = null;
+		this.isConnected = false;
 	}
 
 
@@ -250,6 +267,9 @@ client.on(Events.InteractionCreate, async interaction => {
 			await songList.checkJoinCall(interaction);
 			let songName = interaction.options.getString('songname', true);
 			songList.addNode((songName + '.mp3'));	
+		}
+		if(interaction.commandName === 'playall'){
+			songList.playAll();
 		}
 	}
 	catch(error){
